@@ -1,0 +1,50 @@
+{
+    "project": "Bird Audio Classification",
+    "dataset": "Freefield1010",
+    "timestamp": "2026-09-20T20:12:37.436878",
+    "hyperparameters": {
+        "model_type": "audio_resnet",
+        "sample_rate": 22050,
+        "duration_seconds": 10.0,
+        "n_mels": 128,
+        "batch_size": 32,
+        "learning_rate": 0.001,
+        "epochs_trained": 16
+    },
+    "dataset_splits": {
+        "total": 7690,
+        "train": 5383,
+        "val": 1153,
+        "test": 1154
+    },
+    "test_evaluation_metrics": {
+        "test_samples": 1154,
+        "accuracy": 0.7582,
+        "roc_auc": 0.8972,
+        "average_precision_pr_auc": 0.8225,
+        "precision": 0.5112,
+        "recall_sensitivity": 0.8621,
+        "specificity": 0.7234,
+        "f1_score": 0.6418,
+        "confusion_matrix": {
+            "true_negatives": 625,
+            "false_positives": 239,
+            "false_negatives": 40,
+            "true_positives": 250
+        }
+    },
+    "model_complexity": {
+        "total_parameters": 2832801,
+        "trainable_parameters": 2828001,
+        "estimated_macs": 482427008,
+        "mega_macs": 482.43,
+        "giga_flops": 0.965,
+        "inference_latency": {
+            "mean_latency_ms": 56.88,
+            "p50_latency_ms": 56.76,
+            "p95_latency_ms": 58.1,
+            "p99_latency_ms": 59.26,
+            "throughput_samples_per_sec": 17.6
+        }
+    }
+}

@@ -1,0 +1,30 @@
+{
+    "model_path": "output/saved_models/best_bird_model.keras",
+    "total_samples_evaluated": 7690,
+    "metrics": {
+        "accuracy": 0.7783,
+        "roc_auc": 0.912,
+        "average_precision_pr_auc": 0.8422,
+        "precision": 0.5361,
+        "recall": 0.8822,
+        "specificity": 0.7434,
+        "f1_score": 0.6669,
+        "true_negatives": 4278,
+        "false_positives": 1477,
+        "false_negatives": 228,
+        "true_positives": 1707
+    },
+    "complexity": {
+        "total_params": 2832801,
+        "trainable_params": 2828001,
+        "macs_mega": 482.43,
+        "flops_giga": 0.965,
+        "latency": {
+            "mean_latency_ms": 229.97,
+            "p50_latency_ms": 222.32,
+            "p95_latency_ms": 290.16,
+            "p99_latency_ms": 350.16,
+            "throughput_samples_per_sec": 4.3
+        }
+    }
+}
