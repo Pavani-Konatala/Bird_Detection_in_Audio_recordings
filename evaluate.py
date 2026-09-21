@@ -1,13 +1,3 @@
-"""
-evaluate.py - Standalone Model Evaluation & Metrics Generation
-==============================================================
-Loads a trained model checkpoint (.keras) and evaluates on test data or any dataset:
-- Computes Accuracy, ROC-AUC, Precision, Recall, F1-Score, Specificity
-- Generates Confusion Matrix, ROC Curve, and Precision-Recall plots
-- Measures inference latency (single-item & batch) and parameter footprint
-- Saves evaluation results to JSON and PNG files
-"""
-
 import os
 import sys
 import json

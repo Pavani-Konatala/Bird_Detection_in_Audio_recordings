@@ -1,17 +1,3 @@
-"""
-train.py - Complete Training & In-Training Evaluation Pipeline
-=============================================================
-Trains AudioResNet on Freefield1010 audio data with:
-- Stratified Train/Val/Test data splits
-- Class-weight balancing for label imbalance
-- Callbacks: TensorBoard, ModelCheckpoint (best weights), EarlyStopping, ReduceLROnPlateau
-- Automatic Held-Out Test Evaluation directly upon training completion:
-    * Test Accuracy, ROC-AUC, Precision, Recall, F1-Score, Specificity
-    * Plots: Confusion Matrix, ROC Curve, Precision-Recall Curve, Training Curves
-    * Model Complexity: Parameter count, MACs/FLOPs, Inference Latency benchmark
-    * Saves all metrics to output/results/evaluation_summary.json
-"""
-
 import os
 import sys
 import json

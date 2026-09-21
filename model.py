@@ -1,12 +1,3 @@
-"""
-model.py - Neural Network Architectures, FLOPs/MACs Profiling & Latency Benchmarks
-===================================================================================
-Provides deep learning models for Log-Mel Spectrogram bird classification:
-1. AudioResNet: Custom lightweight 2D Residual CNN with Global Average Pooling
-2. AudioMobileNetV2: Transfer-learning / Depthwise separable convolution architecture
-3. Model Complexity Profiler: Exact Parameter Counts, MACs/FLOPs estimator, Latency Benchmarking
-"""
-
 import time
 import logging
 from typing import Tuple, Dict, Any
