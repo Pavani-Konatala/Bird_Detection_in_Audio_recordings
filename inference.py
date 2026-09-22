@@ -18,16 +18,8 @@ logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def predict_single_audio(
-    model: tf.keras.Model,
-    audio_path: str,
-    threshold: float = 0.5,
-    visualize: bool = False,
-    output_viz_dir: str = "output/visualizations"
-) -> Dict[str, Any]:
-    """
-    Runs end-to-end inference on a single audio file and measures latency breakdown.
-    """
+def predict_single_audio(model: tf.keras.Model,audio_path: str,threshold: float = 0.5,visualize: bool = False,output_viz_dir: str = "output/visualizations") -> Dict[str, Any]:
+    
     if not os.path.exists(audio_path):
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
 

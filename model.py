@@ -12,44 +12,23 @@ logger = logging.getLogger(__name__)
 
 def residual_block(x: tf.Tensor, filters: int, stride: int = 1) -> tf.Tensor:
     """
-    Standard Residual block with shortcut projection if spatial dimensions or channels change.
     Conv2D -> BatchNorm -> ReLU -> Conv2D -> BatchNorm -> Add(shortcut) -> ReLU
     """
     shortcut = x
 
     # First conv block
-    y = layers.Conv2D(
-        filters, 
-        kernel_size=(3, 3), 
-        strides=stride, 
-        padding="same",
-        use_bias=False,
-        kernel_regularizer=regularizers.l2(1e-4)
-    )(x)
+    y = layers.Conv2D(filters, kernel_size=(3, 3), strides=stride, padding="same",use_bias=False, kernel_regularizer=regularizers.l2(1e-4))(x)
     y = layers.BatchNormalization()(y)
     y = layers.ReLU()(y)
 
     # Second conv block
-    y = layers.Conv2D(
-        filters, 
-        kernel_size=(3, 3), 
-        strides=1, 
-        padding="same",
-        use_bias=False,
-        kernel_regularizer=regularizers.l2(1e-4)
-    )(y)
+    y = layers.Conv2D( filters, kernel_size=(3, 3), strides=1, padding="same",use_bias=False,kernel_regularizer=regularizers.l2(1e-4) )(y)
     y = layers.BatchNormalization()(y)
 
     # Adjust shortcut if dimensions differ
     in_channels = x.shape[-1]
     if stride != 1 or in_channels != filters:
-        shortcut = layers.Conv2D(
-            filters, 
-            kernel_size=(1, 1), 
-            strides=stride, 
-            padding="same",
-            use_bias=False
-        )(x)
+        shortcut = layers.Conv2D( filters, kernel_size=(1, 1), strides=stride, padding="same", use_bias=False)(x)
         shortcut = layers.BatchNormalization()(shortcut)
 
     out = layers.add([shortcut, y])
@@ -57,11 +36,7 @@ def residual_block(x: tf.Tensor, filters: int, stride: int = 1) -> tf.Tensor:
     return out
 
 
-def build_audio_resnet(
-    input_shape: Tuple[int, int, int] = (128, 431, 1),
-    num_classes: int = 1,
-    dropout_rate: float = 0.3
-) -> tf.keras.Model:
+def build_audio_resnet( input_shape: Tuple[int, int, int] = (128, 431, 1), num_classes: int = 1, dropout_rate: float = 0.3 ) -> tf.keras.Model:
     """
     Builds the AudioResNet architecture:
     - Input: Log-Mel Spectrogram (128 Mel bands x 431 time frames x 1 channel)
@@ -73,13 +48,7 @@ def build_audio_resnet(
     inputs = layers.Input(shape=input_shape, name="audio_spectrogram_input")
 
     # Initial Convolution & Downsample
-    x = layers.Conv2D(
-        32, 
-        kernel_size=(5, 5), 
-        strides=(2, 2), 
-        padding="same", 
-        use_bias=False
-    )(inputs)
+    x = layers.Conv2D( 32, kernel_size=(5, 5), strides=(2, 2), padding="same", use_bias=False)(inputs)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
     x = layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
@@ -113,11 +82,7 @@ def build_audio_resnet(
     return model
 
 
-def build_audio_mobilenet(
-    input_shape: Tuple[int, int, int] = (128, 431, 1),
-    num_classes: int = 1,
-    dropout_rate: float = 0.3
-) -> tf.keras.Model:
+def build_audio_mobilenet(input_shape:Tuple[int, int, int] = (128, 431, 1), num_classes:int = 1, dropout_rate: float = 0.3) -> tf.keras.Model:
     """
     Builds an Audio MobileNetV2 architecture:
     - Replicates 1-channel spectrogram to 3 channels via 1x1 Conv
@@ -125,16 +90,11 @@ def build_audio_mobilenet(
     - Low computational footprint (ideal for edge and embedded deployment)
     """
     inputs = layers.Input(shape=input_shape, name="audio_spectrogram_input")
-
     # Project 1 channel to 3 channels for MobileNetV2 compatibility
     x = layers.Conv2D(3, kernel_size=(1, 1), padding="same", name="channel_expander")(inputs)
 
     # MobileNetV2 backbone
-    backbone = tf.keras.applications.MobileNetV2(
-        input_tensor=x,
-        include_top=False,
-        weights=None  # Trained from scratch on audio or can load pre-trained
-    )
+    backbone = tf.keras.applications.MobileNetV2(input_tensor=x, include_top=False, weights=None )
     x = backbone.output
 
     x = layers.GlobalAveragePooling2D(name="gap")(x)
@@ -151,9 +111,6 @@ def build_audio_mobilenet(
 # ==============================================================================
 
 def count_parameters(model: tf.keras.Model) -> Dict[str, int]:
-    """
-    Calculates total, trainable, and non-trainable parameter counts.
-    """
     trainable_count = int(np.sum([tf.keras.backend.count_params(w) for w in model.trainable_weights]))
     non_trainable_count = int(np.sum([tf.keras.backend.count_params(w) for w in model.non_trainable_weights]))
     total_count = trainable_count + non_trainable_count
@@ -216,13 +173,7 @@ def estimate_macs(model: tf.keras.Model, input_shape: Tuple[int, int, int] = (12
     }
 
 
-def benchmark_inference_latency(
-    model: tf.keras.Model,
-    input_shape: Tuple[int, int, int] = (128, 431, 1),
-    batch_size: int = 1,
-    num_runs: int = 50,
-    warmup_runs: int = 10
-) -> Dict[str, float]:
+def benchmark_inference_latency(model:tf.keras.Model, input_shape:Tuple[int, int, int] = (128, 431, 1), batch_size:int = 1, num_runs:int = 50, warmup_runs: int = 10 ) -> Dict[str, float]:
     """
     Measures CPU / GPU inference latency for a single audio sample (batch_size=1).
     Returns Mean, Median (P50), P95, and Throughput (samples/sec).
@@ -256,11 +207,7 @@ def benchmark_inference_latency(
     }
 
 
-def get_model(
-    model_type: str = "audio_resnet",
-    input_shape: Tuple[int, int, int] = (128, 431, 1),
-    learning_rate: float = 1e-3
-) -> tf.keras.Model:
+def get_model(model_type:str = "audio_resnet", input_shape:Tuple[int, int, int] = (128, 431, 1), learning_rate:float = 1e-3) -> tf.keras.Model:
     """
     Factory function to instantiate and compile the desired model architecture.
     """

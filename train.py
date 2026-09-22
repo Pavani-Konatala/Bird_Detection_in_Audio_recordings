@@ -85,18 +85,8 @@ def plot_training_history(history: tf.keras.callbacks.History, save_path: str):
     logger.info(f"Saved training curves to: {save_path}")
 
 
-def evaluate_and_plot_test_set(
-    model: tf.keras.Model,
-    test_gen,
-    results_dir: str
-) -> dict:
-    """
-    Evaluates the model on the held-out test split and generates:
-    - Confusion Matrix (Heatmap)
-    - ROC Curve with AUC
-    - Precision-Recall Curve with AP
-    - Classification metrics summary
-    """
+def evaluate_and_plot_test_set( model: tf.keras.Model, test_gen, results_dir: str ) -> dict:
+   
     logger.info("Gathering test set predictions for comprehensive evaluation...")
     y_true = []
     y_pred_probs = []
@@ -122,15 +112,7 @@ def evaluate_and_plot_test_set(
 
     # 1. Confusion Matrix Plot
     plt.figure(figsize=(6, 5))
-    sns.heatmap(
-        cm, 
-        annot=True, 
-        fmt="d", 
-        cmap="Blues", 
-        cbar=False,
-        xticklabels=["No Bird (0)", "Bird (1)"],
-        yticklabels=["No Bird (0)", "Bird (1)"]
-    )
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", cbar=False, xticklabels=["No Bird(0)", "Bird(1)"],yticklabels=["No Bird(0)", "Bird(1)"])
     plt.title(f"Test Confusion Matrix\nAccuracy: {acc:.4f} | F1: {f1:.4f}")
     plt.xlabel("Predicted Label")
     plt.ylabel("True Label")
@@ -193,7 +175,6 @@ def train_pipeline(args):
     """
     End-to-end workflow: Data Ingestion -> Model Compilation -> Training -> Evaluation.
     """
-    # Create output directories
     output_dir = Path(args.output_dir)
     models_dir = output_dir / "saved_models"
     logs_dir = output_dir / "logs" / "fit" / datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -210,76 +191,31 @@ def train_pipeline(args):
         sys.exit(1)
 
     logger.info("=== STEP 2: Creating Stratified Splits ===")
-    train_gen, val_gen, test_gen, split_info = get_dataset_splits(
-        df,
-        batch_size=args.batch_size,
-        train_ratio=0.70,
-        val_ratio=0.15,
-        test_ratio=0.15,
-        seed=args.seed
-    )
+    train_gen, val_gen, test_gen, split_info = get_dataset_splits( df, batch_size=args.batch_size, train_ratio=0.70, val_ratio=0.15,test_ratio=0.15, seed=args.seed )
 
     class_weights = compute_class_weights(split_info["train_pos"], split_info["train_neg"])
 
     logger.info(f"=== STEP 3: Initializing Model ({args.model_type}) ===")
     input_shape = (DEFAULT_CONFIG["n_mels"], 431, 1)
-    model = get_model(
-        model_type=args.model_type,
-        input_shape=input_shape,
-        learning_rate=args.lr
-    )
+    model = get_model( model_type=args.model_type, input_shape=input_shape, learning_rate=args.lr )
     model.summary(print_fn=logger.info)
 
     # Setup callbacks
     best_model_path = str(models_dir / "best_bird_model.keras")
     callbacks = [
-        tf.keras.callbacks.TensorBoard(
-            log_dir=str(logs_dir),
-            histogram_freq=1,
-            write_graph=True
-        ),
-        tf.keras.callbacks.ModelCheckpoint(
-            filepath=best_model_path,
-            monitor="val_auc",
-            mode="max",
-            save_best_only=True,
-            verbose=1
-        ),
-        tf.keras.callbacks.EarlyStopping(
-            monitor="val_auc",
-            mode="max",
-            patience=args.early_stopping_patience,
-            restore_best_weights=True,
-            verbose=1
-        ),
-        tf.keras.callbacks.ReduceLROnPlateau(
-            monitor="val_loss",
-            factor=0.5,
-            patience=3,
-            min_lr=1e-6,
-            verbose=1
-        ),
-        tf.keras.callbacks.CSVLogger(
-            filename=str(results_dir / "training_history.csv")
-        )
+        tf.keras.callbacks.TensorBoard(log_dir=str(logs_dir), histogram_freq=1, write_graph=True ),
+        tf.keras.callbacks.ModelCheckpoint( filepath=best_model_path, monitor="val_auc",mode="max", save_best_only=True, verbose=1 ),
+        tf.keras.callbacks.EarlyStopping(monitor="val_auc",mode="max",patience=args.early_stopping_patience,restore_best_weights=True,verbose=1),
+        tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.5,patience=3,min_lr=1e-6,verbose=1),
+        tf.keras.callbacks.CSVLogger(filename=str(results_dir / "training_history.csv"))
     ]
 
     logger.info("=== STEP 4: Training Model ===")
-    history = model.fit(
-        train_gen,
-        validation_data=val_gen,
-        epochs=args.epochs,
-        callbacks=callbacks,
-        class_weight=class_weights,
-        verbose=1
-    )
+    history = model.fit(train_gen,validation_data=val_gen,epochs=args.epochs,callbacks=callbacks,class_weight=class_weights,verbose=1)
 
     # Plot training curves
     plot_training_history(history, str(results_dir / "training_curves.png"))
 
-    # ==========================================================================
-    # STEP 5: AUTOMATIC POST-TRAINING TEST EVALUATION (User Requirement)
-    # ==========================================================================
     logger.info("=== STEP 5: In-Training Evaluation on Held-Out Test Set ===")
     if os.path.exists(best_model_path):
         logger.info(f"Loading best checkpoint for evaluation: {best_model_path}")

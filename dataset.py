@@ -29,12 +29,6 @@ DEFAULT_CONFIG = {
 
 
 def scan_audio_files(data_dir: str) -> Dict[str, str]:
-    """
-    Recursively scans data_dir for all .wav files in subdirectories (01/, 02/, ... 10/).
-    
-    Returns:
-        Dict mapping audio ID (itemid as string) to full absolute file path.
-    """
     data_path = Path(data_dir)
     if not data_path.exists():
         raise FileNotFoundError(f"Data directory does not exist: {data_dir}")
@@ -51,61 +45,21 @@ def scan_audio_files(data_dir: str) -> Dict[str, str]:
     return audio_map
 
 
-def load_and_align_metadata(
-    data_dir: str, 
-    metadata_path: Optional[str] = None
-) -> pd.DataFrame:
-    """
-    Loads ff1010_metadata.csv and matches each entry with the corresponding .wav file.
-    
-    Args:
-        data_dir: Root directory containing subdirectories (01/ to 10/)
-        metadata_path: Optional explicit path to CSV; if None, searches inside data_dir
-        
-    Returns:
-        pd.DataFrame with columns: ['itemid', 'filepath', 'hasbird']
-    """
+def load_and_align_metadata( data_dir: str, metadata_path: Optional[str] = None ) -> pd.DataFrame:
     # Locate metadata file
     if metadata_path is None or not os.path.exists(metadata_path):
-        candidate_names = [
-            "ff1010_metadata.csv", 
-            "ff1010bird_metadata.csv", 
-            "metadata.csv"
-        ]
-        found = False
-        for name in candidate_names:
-            candidate = os.path.join(data_dir, name)
-            if os.path.exists(candidate):
-                metadata_path = candidate
-                found = True
-                break
-        if not found:
-            # Check parent directory as well
-            parent_dir = str(Path(data_dir).parent)
-            for name in candidate_names:
-                candidate = os.path.join(parent_dir, name)
-                if os.path.exists(candidate):
-                    metadata_path = candidate
-                    found = True
-                    break
-        if not found:
-            raise FileNotFoundError(
-                f"Could not locate metadata CSV in {data_dir}. "
-                f"Please pass --metadata /path/to/ff1010_metadata.csv"
-            )
+        raise FileNotFoundError(
+            f"Could not locate metadata CSV in {data_dir}. "
+            f"Please pass --metadata /path/to/ff1010_metadata.csv"
+        )
 
     logger.info(f"Loading metadata from: {metadata_path}")
     df = pd.read_csv(metadata_path)
-
-    # Standardize column names (lowercase, strip whitespace)
     df.columns = [c.strip().lower() for c in df.columns]
 
-    # Freefield1010 typically has 'itemid' and 'hasbird'
     if "itemid" not in df.columns:
-        # Fallback if first column contains the item ID
         df.rename(columns={df.columns[0]: "itemid"}, inplace=True)
     if "hasbird" not in df.columns:
-        # Fallback if label column is named 'label' or 'target'
         for alias in ["label", "target", "bird", "class"]:
             if alias in df.columns:
                 df.rename(columns={alias: "hasbird"}, inplace=True)
@@ -113,22 +67,15 @@ def load_and_align_metadata(
 
     df["itemid"] = df["itemid"].astype(str).str.strip()
     df["hasbird"] = df["hasbird"].astype(int)
-
-    # Scan audio files
     audio_map = scan_audio_files(data_dir)
-    
-    # Map itemid to file path
     df["filepath"] = df["itemid"].map(audio_map)
     
-    # Filter out entries with missing audio files
     initial_count = len(df)
     df = df.dropna(subset=["filepath"]).reset_index(drop=True)
     matched_count = len(df)
-    
     logger.info(
         f"Metadata alignment: {matched_count}/{initial_count} records matched with audio files."
     )
-    
     # Class distribution
     pos_count = (df["hasbird"] == 1).sum()
     neg_count = (df["hasbird"] == 0).sum()
@@ -138,35 +85,17 @@ def load_and_align_metadata(
         f"Class Distribution: hasbird=0: {neg_count} ({neg_ratio:.1f}%), "
         f"hasbird=1: {pos_count} ({pos_ratio:.1f}%)"
     )
-    
     return df
 
-
-def extract_log_mel_spectrogram(
-    file_path: str,
-    sr: int = 22050,
-    duration: float = 10.0,
-    n_mels: int = 128,
-    n_fft: int = 2048,
-    hop_length: int = 512,
-    fmin: int = 50,
-    fmax: int = 11000
-) -> np.ndarray:
-    """
-    Loads an audio file, resamples to target sample rate, pads/trims to target duration,
-    and extracts a normalized Log-Mel Spectrogram.
+def extract_log_mel_spectrogram( file_path: str, sr: int = 22050, duration: float = 10.0, n_mels: int = 128, n_fft: int = 2048, hop_length: int = 512, fmin: int = 50, fmax: int = 11000 ) -> np.ndarray:
     
-    Returns:
-        np.ndarray of shape (n_mels, time_steps, 1) normalized to [0.0, 1.0]
-    """
     target_samples = int(sr * duration)
     try:
         y, _ = librosa.load(file_path, sr=sr, mono=True)
     except Exception as e:
-        # Fallback using soundfile
         y, file_sr = sf.read(file_path, dtype='float32')
         if y.ndim > 1:
-            y = np.mean(y, axis=1)  # Convert stereo to mono
+            y = np.mean(y, axis=1) 
         if file_sr != sr:
             y = librosa.resample(y, orig_sr=file_sr, target_sr=sr)
 
@@ -178,17 +107,7 @@ def extract_log_mel_spectrogram(
         # Center crop or trim
         y = y[:target_samples]
 
-    # Compute Mel-scaled spectrogram
-    mel_spectrogram = librosa.feature.melspectrogram(
-        y=y,
-        sr=sr,
-        n_fft=n_fft,
-        hop_length=hop_length,
-        n_mels=n_mels,
-        fmin=fmin,
-        fmax=fmax,
-        power=2.0
-    )
+    mel_spectrogram = librosa.feature.melspectrogram( y=y, sr=sr, n_fft=n_fft, hop_length=hop_length, n_mels=n_mels, fmin=fmin, fmax=fmax, power=2.0 )
 
     # Convert to log scale (decibels)
     log_mel = librosa.power_to_db(mel_spectrogram, ref=np.max)
@@ -206,16 +125,8 @@ def extract_log_mel_spectrogram(
     return log_mel
 
 
-def apply_spec_augment(
-    spectrogram: np.ndarray,
-    freq_mask_max: int = 16,
-    time_mask_max: int = 24,
-    noise_factor: float = 0.02
-) -> np.ndarray:
-    """
-    Applies SpecAugment data augmentation (Frequency Masking, Time Masking, Additive Noise)
-    to a Log-Mel spectrogram.
-    """
+def apply_spec_augment( spectrogram: np.ndarray, freq_mask_max: int = 16, 
+                       time_mask_max: int = 24, noise_factor: float = 0.02 ) -> np.ndarray:
     spec = spectrogram.copy()
     n_mels, time_steps, _ = spec.shape
 
@@ -240,19 +151,9 @@ def apply_spec_augment(
 
 
 class FreefieldAudioGenerator(tf.keras.utils.Sequence):
-    """
-    Keras Sequence generator for streaming and batching Log-Mel spectrograms from disk.
-    Avoids loading the entire 7GB dataset into memory.
-    """
-    def __init__(
-        self,
-        filepaths: List[str],
-        labels: List[int],
-        batch_size: int = 32,
-        augment: bool = False,
-        config: Optional[dict] = None,
-        shuffle: bool = True
-    ):
+
+    def __init__(self, filepaths: List[str], labels: List[int], batch_size: int = 32, augment: bool = False,
+                config: Optional[dict] = None, shuffle: bool = True ):
         self.filepaths = np.array(filepaths)
         self.labels = np.array(labels, dtype=np.float32)
         self.batch_size = batch_size
@@ -277,16 +178,7 @@ class FreefieldAudioGenerator(tf.keras.utils.Sequence):
 
         batch_features = []
         for path in batch_paths:
-            spec = extract_log_mel_spectrogram(
-                path,
-                sr=self.config["sample_rate"],
-                duration=self.config["duration"],
-                n_mels=self.config["n_mels"],
-                n_fft=self.config["n_fft"],
-                hop_length=self.config["hop_length"],
-                fmin=self.config["fmin"],
-                fmax=self.config["fmax"]
-            )
+            spec = extract_log_mel_spectrogram( path, sr=self.config["sample_rate"], duration=self.config["duration"], n_mels=self.config["n_mels"], n_fft=self.config["n_fft"], hop_length=self.config["hop_length"],nfmin=self.config["fmin"], fmax=self.config["fmax"] )
             if self.augment:
                 spec = apply_spec_augment(spec)
             batch_features.append(spec)
@@ -294,42 +186,19 @@ class FreefieldAudioGenerator(tf.keras.utils.Sequence):
         return np.array(batch_features, dtype=np.float32), np.array(batch_labels, dtype=np.float32)
 
 
-def get_dataset_splits(
-    df: pd.DataFrame,
-    batch_size: int = 32,
-    train_ratio: float = 0.70,
-    val_ratio: float = 0.15,
-    test_ratio: float = 0.15,
-    config: Optional[dict] = None,
-    seed: int = 42
-) -> Tuple[FreefieldAudioGenerator, FreefieldAudioGenerator, FreefieldAudioGenerator, dict]:
-    """
-    Performs stratified splitting of the dataset into Train, Validation, and Test sets.
+def get_dataset_splits( df: pd.DataFrame, batch_size: int = 32, train_ratio: float = 0.70, val_ratio: float = 0.15, test_ratio: float = 0.15,config: Optional[dict] = None, seed: int = 42 ) -> Tuple[FreefieldAudioGenerator, FreefieldAudioGenerator, FreefieldAudioGenerator, dict]:
     
-    Returns:
-        (train_gen, val_gen, test_gen, split_info_dict)
-    """
     assert np.isclose(train_ratio + val_ratio + test_ratio, 1.0), "Splits must sum to 1.0"
 
     cfg = config or DEFAULT_CONFIG
     cfg["batch_size"] = batch_size
 
     # Split train + temp (val + test)
-    train_df, temp_df = train_test_split(
-        df,
-        test_size=(val_ratio + test_ratio),
-        random_state=seed,
-        stratify=df["hasbird"]
-    )
+    train_df, temp_df = train_test_split( df, test_size=(val_ratio + test_ratio), random_state=seed, stratify=df["hasbird"] )
 
     # Split temp into val and test
     val_fraction = val_ratio / (val_ratio + test_ratio)
-    val_df, test_df = train_test_split(
-        temp_df,
-        test_size=(1.0 - val_fraction),
-        random_state=seed,
-        stratify=temp_df["hasbird"]
-    )
+    val_df, test_df = train_test_split( temp_df, test_size=(1.0 - val_fraction), random_state=seed, stratify=temp_df["hasbird"] )
 
     split_info = {
         "total": len(df),
@@ -350,42 +219,10 @@ def get_dataset_splits(
     logger.info(f"Val:   {len(val_df)} samples (Pos: {split_info['val_pos']}, Neg: {split_info['val_neg']})")
     logger.info(f"Test:  {len(test_df)} samples (Pos: {split_info['test_pos']}, Neg: {split_info['test_neg']})")
 
-    train_gen = FreefieldAudioGenerator(
-        filepaths=train_df["filepath"].tolist(),
-        labels=train_df["hasbird"].tolist(),
-        batch_size=batch_size,
-        augment=True,
-        config=cfg,
-        shuffle=True
-    )
+    train_gen = FreefieldAudioGenerator( filepaths=train_df["filepath"].tolist(), labels=train_df["hasbird"].tolist(), batch_size=batch_size,augment=True, config=cfg, shuffle=True )
 
-    val_gen = FreefieldAudioGenerator(
-        filepaths=val_df["filepath"].tolist(),
-        labels=val_df["hasbird"].tolist(),
-        batch_size=batch_size,
-        augment=False,
-        config=cfg,
-        shuffle=False
-    )
+    val_gen = FreefieldAudioGenerator(filepaths=val_df["filepath"].tolist(), labels=val_df["hasbird"].tolist(), batch_size=batch_size,augment=False, config=cfg, shuffle=False )
 
-    test_gen = FreefieldAudioGenerator(
-        filepaths=test_df["filepath"].tolist(),
-        labels=test_df["hasbird"].tolist(),
-        batch_size=batch_size,
-        augment=False,
-        config=cfg,
-        shuffle=False
-    )
+    test_gen = FreefieldAudioGenerator( filepaths=test_df["filepath"].tolist(), labels=test_df["hasbird"].tolist(), batch_size=batch_size, augment=False, config=cfg, shuffle=False )
 
     return train_gen, val_gen, test_gen, split_info
-
-
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="Test Dataset Ingestion & Feature Extraction")
-    parser.add_argument("--data-dir", type=str, default="data", help="Path to data directory")
-    parser.add_argument("--metadata", type=str, default="data/ff1010bird_metadata_2018.csv", help="Path to metadata CSV")
-    args = parser.parse_args()
-
-    print("Checking dataset module configuration...")
-    print(f"Default config: {DEFAULT_CONFIG}")
